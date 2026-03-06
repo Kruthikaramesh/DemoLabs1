@@ -1,0 +1,229 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/css/site.css" />
+
+    <style>
+
+        h3 {
+            border-bottom: 2px solid #ccc;
+        }
+
+        #log {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 15px;
+            background: #f9f9f9;
+            min-height: 120px;
+        }
+
+        .state {
+            margin: 4px 0;
+        }
+
+        .response {
+            margin-top: 12px;
+            font-weight: bold;
+            color: darkgreen;
+        }
+
+        .loading {
+            margin-top: 12px;
+            color: #aa5500;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div class="container-fluid">
+
+        <h1>XMLHttpRequest lifecycle demo - with Streamed Response from API</h1>
+        <hr />
+
+        <div class="container">
+            <p>
+                This demo calls the <b>GetHelloStream()</b> method <br />
+                in the <b>Demo</b> Controller<br />
+                of the <b>DemoWebApp1.Api</b> project.
+            </p>
+            <p>
+                https://localhost:7140/api/demo/gethello
+            </p>
+            <p>
+                <button class="btn btn-primary" onclick="callApi()">Call the GetData() API endpoint</button>
+            </p>
+
+            <b>RESPONSE FROM API:</b>
+            <div id="responseText"></div>
+
+            <h3>LOG</h3>
+            <div id="log"></div>
+
+            <hr />
+            <b>NOTE:</b>
+            <ul>
+                <li>
+                    Check out the CORS Policy configuration in the <b>Program.cs</b> file of the API project.
+                </li>
+                <li>
+                    The API endpoint is configured for a delay of 3 seconds.
+                </li>
+            </ul>
+
+            </p>
+            <hr />
+            <p>
+                SET <b>Chrome DevTools → Network → Disable cache → Throttle</b> to <b><i>Slow 3G</i></b>
+                <br />
+                The streaming effect becomes even more visible.
+            </p>
+
+            <!------------------
+                | readyState | Meaning          | Response Available?  |
+                | ---------- | ---------------- | -------------------- |
+                | 0          | UNSENT           | NO                   |
+                | 1          | OPENED           | NO                   |
+                | 2          | HEADERS_RECEIVED | NO                   |
+                | 3          | LOADING          | partial              |
+                | 4          | DONE             | YES full response    |
+            ------------------>
+        </div>
+    </div>
+
+
+    <script>
+
+        /**
+         * Writes a message into the log container.
+         * @param {string} message Message to display.
+         */
+        function log(message) {
+            const logDiv = document.getElementById("log");
+
+            const line = document.createElement("div");
+            line.className = "state";
+            line.textContent = message;
+
+            logDiv.appendChild(line);
+        }
+
+
+        /**
+         * Demonstrates an XMLHttpRequest lifecycle calling the ASP.NET Web API endpoint.
+         * The API intentionally delays the response, to help observe the change in readyState.
+         */
+        function callApi() {
+
+            document.getElementById("log").innerHTML = '';
+            document.getElementById('responseText').innerHTML = '';
+
+            /**
+             * Create XMLHttpRequest instance.
+             * @type {XMLHttpRequest}
+             */
+            const xhr = new XMLHttpRequest();
+
+            log("XHR object created. readyState = " + xhr.readyState);
+
+
+            // To keep track of length of content recieved from the API
+            let lastLength = 0;
+
+
+            /**
+             * readyState change event handler
+             */
+            xhr.onreadystatechange = () => {
+
+                log("readyState changed → " + xhr.readyState);
+
+                switch (xhr.readyState) {
+                    case 0:
+                        log("0 → UNSENT : Request not initialized");
+                        break;
+
+                    case 1:
+                        log("1 → OPENED : open() called");
+                        break;
+
+                    case 2:
+                        log("2 → HEADERS_RECEIVED : Server acknowledged request");
+                        break;
+
+                    case 3:
+                        log("3 → LOADING : Response data is being downloaded...");
+
+                        // Show the partial response as and when it arrives!
+                        const responseData = xhr.responseText;
+                        if (responseData.length !== lastLength) {
+                            console.log("Received more data.  Length = " + responseData.length);
+                            document.getElementById('responseText').innerHTML = xhr.responseText;
+                            lastLength = responseData.length;
+                        }
+                        break;
+
+                    case 4:
+                        log("4 → DONE : Request completed");
+
+                        if (xhr.status === 200) {
+                            log("HTTP Status = " + xhr.status);
+
+                            const responseDiv = document.createElement("div");
+                            responseDiv.className = "response";
+                            responseDiv.textContent = "Server Response: " + xhr.responseText;
+
+                            document.getElementById("log").appendChild(responseDiv);
+
+                            // Update the UI with the final response!
+                            document.getElementById('responseText').innerHTML = xhr.responseText;
+                        }
+                        else {
+                            log("HTTP Error: " + xhr.status);
+                        }
+
+                        break;
+                }
+            };
+
+
+            // Configure the onProgress event handler to update the UI
+            // Show the partial response as and when it arrives!
+            xhr.onprogress = () => {
+
+                const responseData = xhr.responseText;
+
+                if(responseData.length !== lastLength) {
+                    log("Received more data.  Length = " + responseData.length);
+                    document.getElementById('responseText').innerHTML = xhr.responseText;
+                    lastLength = responseData.length;
+                }
+            };
+
+            // Configure the request.
+            xhr.open(
+                "GET",                                              // HTTP Verb
+                "https://localhost:7140/api/demo/gethellostream",   // API endpoint
+                true                                                // async?
+            );
+
+
+            log("open() invoked");
+
+
+            // Send request to server.
+            xhr.send();
+
+            const loading = document.createElement("div");
+            loading.className = "loading";
+            loading.textContent = "Waiting for server response (3 seconds delay)...";
+
+            document.getElementById("log").appendChild(loading);
+        }
+
+    </script>
+</body>
+</html>

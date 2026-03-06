@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "xhrDemo",
+    "Projects": [
+      {
+        "Path": "DemoWebApp1\\DemoWebApp1.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "DemoWebApp1.Api\\DemoWebApp1.Api.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

@@ -15,11 +15,17 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+
+// Add the middleware to return requests for CSS, JS, HTML and other static content from wwwroot.
+// NOTE: Ensure it is added before "app.UseRouting()"!
+app.UseStaticFiles();      
+
 app.UseRouting();
 
 app.UseAuthorization();
 
-app.MapStaticAssets();
+app.MapStaticAssets();          // Serves library/package assets (generated during the build & bundling process)
+
 app.MapRazorPages()
    .WithStaticAssets();
 
