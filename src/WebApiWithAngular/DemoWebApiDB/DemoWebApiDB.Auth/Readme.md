@@ -143,42 +143,193 @@ DemoWebApiDB.Auth
 
 ## Phase 3: Setup Permission-Based Authorization Policies
 
-### 15. Define the `PermissionService` in the `DemoWebApiDB.Auth` project
 
-- Add a new class `Policies\PermissionRequirement` that implements `IAuthorizationRequirement` 
-  to represent a permission requirement for authorization policies.
-- Add a new class `Handlers\PermissionHandler` that inherits from `AuthorizationHandler<PermissionRequirement>` 
-  to handle the evaluation of permission requirements during authorization.
+### 15. Define a Constant `CustomClaimType` in the `DemoWebApiDB.Infrastructure` project 
+
+Define a Constant `CustomClaimType` in the `DemoWebApiDB.Infrastructure` project 
+to represent the claim type used for permissions in the JWT token.  
+This helps ensure that there are no "magic strings" to denote the claim type for permissions.
+
+
+### 16. Define the `PermissionService` in the `DemoWebApiDB.Auth` project
+
+Add a new class `Policies\PermissionRequirement` in the `DemoWebApiDB.Auth`, that implements `IAuthorizationRequirement`.
+
+This represents a permission requirement for authorization policies, used by the authorization middleware.
+
+
+### 17. Define the `PermissionAuthorizationHandler` in the `DemoWebApiDB.Auth` project
+
+Add a new class `Handlers\PermissionAuthorizationHandler` that inherits from `AuthorizationHandler<PermissionRequirement>`,
+in the `DemoWebApiDB.Auth` project.
+
+This handles the evaluation of permission requirements during the authorization process.
   ```
   NOTE:
     - Requirement   → describes what must be satisfied
     - Handler       → checks whether the requirement is satisfied 
   ```
-- Add a new class `Policies\PermissionPolicyProvider` that inherits from `DefaultAuthorizationPolicyProvider` 
-  to dynamically create authorization policies based on permissions defined in the database.
-- In the `Program.cs` of the API Project:
+
+### 18. Define the `PermissionPolicyProvider` in the `DemoWebApiDB.Auth` project
+
+Add a new class `Policies\PermissionPolicyProvider` that inherits from `DefaultAuthorizationPolicyProvider`, 
+in the `DemoWebApiDB.Auth` project.
+
+This dynamically creates authorization policies based on permissions defined in the database.
+
+### 19. Register the Authorization services and handlers in the `Program.cs` of the Web API project
+
+In the `Program.cs` of the API Project:
+
   - Ensure that Authorization services is registered in the DI container:
     ```
         builder.Services.AddAuthorization();
     ```
+
   - Register the services in the DI Container:
     ```
         builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
         builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
     ```
 
- Thus, the final workflow will be:
+---
+
+## To summarize:
+
+The `PermissionPolicyProvider` intercepts policy requests from ASP.NET Core 
+and dynamically builds the policy when the requested policy name matches one of the defined application permissions.
+This avoids the need to manually register every single policy in Program.cs.
+All one now needs to do is define using the policy like:
+    ```
+    [Authorize(Roles = "Admin")]
+    ```
+or
+    ```
+    [Authorize(Policy = Permissions.CanAddCategory)]
+    ```
+without having to explicitly register all the policies in Program.cs
+
+
+Thus, the final workflow is:
 
 ```
-Angular Request
-        │
-JWT Authentication Middleware
-        │
-Authorization Middleware
-        │
+Angular Client
+      │
+HTTP Request with JWT
+      │
+Authentication Middleware ( app.UseAuthentication )
+      │
+JWT validated → ClaimsPrincipal created
+      │
+Authorization Middleware ( app.UseAuthorization )
+      │
+Authorize Attribute detected
+      │
 PermissionPolicyProvider
-        │
+      │
+PermissionRequirement created
+      │
 PermissionAuthorizationHandler
-        │
-Controller Endpoint
+      │
+Requirement satisfied?
+      │
+      ├─ YES → Controller Action method executes
+      │
+      └─ NO  → 403 Forbidden
 ```
+
+To summarize the expected results for different scenarios when accessing a protected endpoint:
+
+| Scenario	                    | Result           |
+|-------------------------------|------------------|
+| No token	                    | 401 Unauthorized |
+| Token invalid	                | 401 Unauthorized |
+| Token valid but no permission	| 403 Forbidden    |
+
+
+---
+
+
+# Define the Admin UI for managing Users, Roles, and Permissions in the `DemoWebApiDB` API project!
+
+## Add Razor Pages support in the `Program.cs` of the Web API project
+
+Add the following lines in the `Program.cs` of the Web API project:
+
+
+### 20. Register Razor Pages Support in the DI Container
+
+```
+// Registers Razor Pages support used for administration UI.
+builder.Services.AddRazorPages();
+````
+
+
+### 21. Add Razor Pages Middleware to the Request Pipeline
+```
+app.MapControllers();             // Maps API controller endpoints
+
+app.MapRazorPages();              // Maps Razor Pages endpoints for the admin UI
+```
+
+### 22. Setup the Folders for the Admin UI in the `DemoWebApiDB` API project
+
+```
+DemoWebApiDB
+│
+├── Pages
+│   ├── _ViewImports.cshtml                 (Razor View)
+│   ├── _ViewStart.cshtml                   (Razor View)
+│   │
+│   └── Admin
+│       ├── _AdminLayout.cshtml             (Razor View - Layout for all Admin Pages)
+│       │
+│       ├── Roles                       ROLE MANAGEMENT PAGES
+│       │   ├── Index.cshtml                (Razor Page)  - to list all the Roles
+│       │   └── Permissions.cshtml          (Razor Page   - to manage the permissions for a selected role
+│       │
+│       └── Users                       USER MANAGEMENT PAGES
+│           ├── Index.cshtml                (Razor Page)  - to list all Users in the system
+│           └── ManageUser.cshtml           (Razor Page)  - to Add/Edit a User and manage the Roles for the User.
+```
+
+### 23. Define the Configuration files for the Razor Pages
+
+1. Add `_ViewImports.cshtml` file <br />
+   to define the global USINGS for the Razor View Pages in the current and sub-folders.
+2. Add the `_AdminLayout.cshtml` file <br />
+   to define the UI layout for all the Admin Razor Pages.
+3. Add `_ViewStart.cshtml` to register the UI Layout for all the pages in the current and sub-folders.
+
+
+### 24. Define the Permission Management Screens for the Roles
+
+1. Add the default landing page (`Index.cshtml`) for URL:`\Admin\Roles` <br />
+   to list all the application roles.
+2. Add the manage permissions page (`Permissions.cshtml`)
+   - It allows to configure the permissions of the selected role
+   - The user will navigate to this page after selecting an Application Role from the `Index` page.
+
+
+### 25. Define the User Management Screens for the Users
+
+1. Add the default landing page (`Index.cshtml`) for URL:`\Admin\Users` <br />
+   to list all the users in the application.
+2. Add the manage users page (`ManageUser.cshtml`)
+   to add/edit the user and assign application role(s) to the user.
+
+
+### 26. Setup the Login and Logout Screens for the Admin Module
+
+1. Add `Login.cshtml` and `Logout.cshtml` 
+2. Configure Program.cs to provide support for `CookieAuthentication` & `JwtAuthentication` in the API Project
+    - ensure that CookieAuthentication is set as the default, for automatic routing to Login Screen
+
+
+### 27. Finally, configure the Authication Policy on all API Routes
+
+1. Configure the `BaseApiController` with JWT Authentication Scheme, 
+   to ensure Bearer Token is always required to access the all API endpoints. 
+2. Set `Login` API endpoint in `AuthController` to allow "anonymous" access.
+
+---
